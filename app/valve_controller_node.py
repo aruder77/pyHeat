@@ -1,26 +1,30 @@
+from machine import Timer, Pin
 from homie.property import HomieProperty
 from homie.node import HomieNode
-from homie.constants import INTEGER
+from homie.constants import INTEGER, STRING
 from homie.device import await_ready_state
-from machine import Pin
-import uasyncio as asyncio
-from uasyncio import sleep_ms
+from uasyncio import sleep_ms, create_task
 
 class ValveControllerNode(HomieNode):
 
     WORKER_DELAY = const(10)
-    VALVE_ONE_PERCENT_OPEN_CYCLES = const(55)
+    VALVE_ONE_PERCENT_OPEN_CYCLES: int = 55
 
-    CLOSE, HOLD, OPEN = range(-1,1)
+    CLOSE, HOLD, OPEN = (-1, 0, 1)
 
-    closePin = Pin(0, Pin.OUT)
-    openPin = Pin(0, Pin.OUT)
+    def __init__(self):
+        super().__init__(id="flowTempValve", name="Flow Temperature Valve", type="Controller")
 
-    valveTarget: int
-    valveCurrent: int
+        self.closePin = Pin(1, Pin.OUT)
+        self.openPin = Pin(0, Pin.OUT)
 
-    def __init(self):
-        super().__init__(id="Valve", name="Valve", type="Controller")
+        self.valveTarget = 0
+        self.internalValveTarget = 0
+        self.previousValveTarget = 0
+        self.valveCurrent = 0
+        self.valveState = self.HOLD
+
+        self.motorAdjustCounter = 0
 
         self.valveTargetProperty = HomieProperty(
             id="valveTarget",
@@ -40,80 +44,107 @@ class ValveControllerNode(HomieNode):
         )
         self.add_property(self.valveCurrentProperty)
 
-        # setup valve control
-        self.closeValve()
+        self.resetValveProperty = HomieProperty(
+            id="resetValve",
+            name="resetValve",
+            default="",
+        )
+        self.add_property(self.resetValveProperty)
+
+        self.pauseValveUpdate = False
+
+        create_task(self.closeValve())
+
+        self.every10SecondsTimer = Timer(-1)
+        self.every10SecondsTimer.init(period=10, mode=Timer.PERIODIC, callback=lambda t:self.every10Milliseconds())
+
+        self.resetValveTimer = Timer(-1)
+        self.resetValveTimer.init(period=86400000, mode=Timer.PERIODIC, callback=lambda t:self.resetValve()) # 24h
+        
 
 
-        # start loop 
-        asyncio.createTask(self.workerLoop())
+    async def closeValve(self):
+        self.pauseValveUpdate = True
+        print("closing all valves...")
+        self.resetValveProperty.value = "resetting valve..."        
 
-    def closeValve(self):
         self.openPin.off()
         self.closePin.on()
 
-        sleep_ms(self.VALVE_ONE_PERCENT_OPEN_CYCLES * 10 * 100);
+        await sleep_ms(self.VALVE_ONE_PERCENT_OPEN_CYCLES * 10 * 100);
 
         self.closePin.off()
+        print("...finished closing all valves")
+        self.pauseValveUpdate = False
+
 
 
     def setTarget(self, target: int):
-        if (target >= 0 and target <= 100):
+        if (target != self.previousValveTarget and target >= 0 and target <= 100):
             self.valveTarget = target
             self.valveTargetProperty.value = target
 
 
-    @await_ready_state
-    async def workerLoop(self):
-        while True: 
-            self.every100Milliseconds()
-
-            await sleep_ms(self.WORKER_DELAY)       
-
-
     def adjustTargetValvePosition(self):
         # check, if new target was set in the meantime...
-        if (self.tempValveTarget != self.valveTarget):
-            self.valveTarget = self.tempValveTarget
+        if (self.valveTarget != self.previousValveTarget):
             print("Ventil Ziel: %d" % self.valveTarget)
+            self.previousValveTarget = self.valveTarget
 
             # if completely open or closed, make sure it is really completely open/closed.
             if (self.valveTarget == 100 and self.valveCurrent < 100):
-                self.valveTarget = 103
+                self.internalValveTarget = 103
             elif (self.valveTarget == 0 and self.valveCurrent > 0):
-                self.valveTarget = -3
+                self.internalValveTarget = -3
+            else:
+                self.internalValveTarget = self.valveTarget
 
-            self.motorAdjustCounter = max(-103.0, min(103.0, float(self.valveTarget - self.valveCurrent))) * self.VALVE_ONE_PERCENT_OPEN_CYCLES
+
+            self.motorAdjustCounter = int(int(max(-103, min(103, self.internalValveTarget - self.valveCurrent))) * self.VALVE_ONE_PERCENT_OPEN_CYCLES)
             print("MotorAdjustCounter: %d" % self.motorAdjustCounter)
 
 
     def every10Milliseconds(self):
-        # adjust 2-point regulation
-        if (self.motorAdjustCounter > 0):
-            if (self.valveState != 1):
-                print("opening valve...")
-                self.valveState = 1
-                self.openPin.on()
-                self.closePin.off()
-            if ((self.motorAdjustCounter % self.VALVE_ONE_PERCENT_OPEN_CYCLES) == 0 and self.valveCurrent < 100):
-                self.valveCurrent += 1
-                self.adjustTargetValvePosition()
-            self.motorAdjustCounter -= 1
-        elif (self.motorAdjustCounter < 0):
-            if (self.valveState != 1):
-                print("closing valve...")
-                self.valveState = -1
-                self.openPin.off()
-                self.closePin.on()
-            if ((self.motorAdjustCounter % self.VALVE_ONE_PERCENT_OPEN_CYCLES) == 0 and self.valveCurrent > 0):
-                self.valveCurrent -= 1
-                self.adjustTargetValvePosition()
-            self.motorAdjustCounter += 1
-        else:
-            if (self.valveState != 0):
-                print("keeping valve state...")
-                self.valveState = 0
+        if (not self.pauseValveUpdate):
+            # adjust 2-point regulation
+            if (self.motorAdjustCounter > 0):
+                if (self.valveState != self.OPEN):
+                    print("opening valve...")
+                    self.valveState = self.OPEN
+                    self.openPin.on()
+                    self.closePin.off()
 
-                # keep current valve position
-                self.openPin.off()
-                self.closePin.off()
-            self.adjustTargetValvePosition();
+                if ((self.motorAdjustCounter % self.VALVE_ONE_PERCENT_OPEN_CYCLES) == 0):
+                    if (self.valveCurrent < 100):
+                        self.valveCurrent += 1
+                    self.motorAdjustCounter -= 1
+                    self.adjustTargetValvePosition()
+                else:
+                    self.motorAdjustCounter -= 1
+
+            elif (self.motorAdjustCounter < 0):
+                if (self.valveState != self.CLOSE):
+                    print("closing valve...")
+                    self.valveState = self.CLOSE
+                    self.openPin.off()
+                    self.closePin.on()
+
+                if ((self.motorAdjustCounter % self.VALVE_ONE_PERCENT_OPEN_CYCLES) == 0):
+                    if (self.valveCurrent > 0):
+                        self.valveCurrent -= 1
+                    self.motorAdjustCounter += 1
+                    self.adjustTargetValvePosition()
+                else:
+                    self.motorAdjustCounter += 1
+
+            else:
+                if (self.valveState != self.HOLD):
+                    print("keeping valve state...")
+                    self.valveState = self.HOLD
+
+                    # keep current valve position
+                    self.openPin.off()
+                    self.closePin.off()
+
+                self.adjustTargetValvePosition()
+
