@@ -43,6 +43,16 @@ class TargetFlowTemperatureCalculatorNode(HomieNode):
         )
         self.add_property(self.maxFlowTempProperty)
 
+        self.targetTemperatureProperty = HomieProperty(
+            id="targetFlowTemperature",
+            name="targetFlowTemperature",
+            datatype=FLOAT,
+            unit="°C", 
+            format="10.0",            
+            on_message=self.targetFlowTemperature,
+        )
+        self.add_property(self.targetTemperatureProperty)        
+
     def slope_msg(self, topic, payload, retained):
         slope = float(payload)
         self.setSlope(slope)
@@ -72,7 +82,9 @@ class TargetFlowTemperatureCalculatorNode(HomieNode):
             self.maxFlowTempProperty.value = maxFlowTemp
 
     def calculateTargetFlowTemperature(self, outsideTemperature: float):
-        return min(self.origin + outsideTemperature * self.slope, self.maxFlowTemp)
+        targetFlowTemperature = min(self.origin + outsideTemperature * self.slope, self.maxFlowTemp)
+        self.targetTemperatureProperty.value = targetFlowTemperature
+        return targetFlowTemperature
 
 
 
