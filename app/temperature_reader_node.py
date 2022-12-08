@@ -105,7 +105,6 @@ class TemperatureReaderNode(HomieNode):
     def getOutsideTemperature(self):
         afResistence = self.resistenceCorrection(self.calculateResistence(self.afVoltage))
         afTemperature = self.calculateTemperature(afResistence)
-        afTemperature = 3.0
         print("outside: voltage:%.2f, resistence:%.2f, temperature:%.1f" % (self.afVoltage, afResistence, afTemperature))
         self.outsideTemperatureProperty.value = afTemperature
         return afTemperature
@@ -122,7 +121,6 @@ class TemperatureReaderNode(HomieNode):
     def getReturnTemperature(self):
         ruefResistence = self.resistenceCorrection(self.calculateResistence(self.ruefVoltage))
         ruefTemperature = self.calculateTemperature(ruefResistence)
-        ruefTemperature = 30.0
         print("reflux: voltage:%.2f, resistence:%.2f, temperature:%.1f" % (self.ruefVoltage, ruefResistence, ruefTemperature))
         self.returnTemperatureProperty.value = ruefTemperature
         return ruefTemperature
