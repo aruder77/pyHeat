@@ -49,7 +49,6 @@ class TargetFlowTemperatureCalculatorNode(HomieNode):
             datatype=FLOAT,
             unit="°C", 
             format="10.0",            
-            on_message=self.targetFlowTemperature,
         )
         self.add_property(self.targetTemperatureProperty)        
 
