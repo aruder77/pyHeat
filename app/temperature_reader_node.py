@@ -17,7 +17,7 @@ class TemperatureReaderNode(HomieNode):
     RESISTENCE_CORRECTION_OFFSET = -20
     RESISTENCE_CORRECTION_FACTOR = 1.0
 
-    NO_OF_SAMPLES_TO_AVG = const(64)
+    NO_OF_SAMPLES_TO_AVG = const(128)
 
     TEMP_FACTOR = 0.257003341043434
     TEMP_OFFSET = -257.003341043434
@@ -86,9 +86,9 @@ class TemperatureReaderNode(HomieNode):
 
 
     def readTemperatures(self):
-        self.afVoltage = avg(self.afFilterData, self.adcAf.read_u16(), 6) / 65536 * self.REF_VOLTAGE 
-        self.ruefVoltage = avg(self.ruefFilterData, self.adcRuef.read_u16(), 6) / 65536 * self.REF_VOLTAGE
-        self.vfVoltage = avg(self.vfFilterData, self.adcVf.read_u16(), 6) / 65536 * self.REF_VOLTAGE
+        self.afVoltage = avg(self.afFilterData, self.adcAf.read_u16(), 11) / 4096 * self.REF_VOLTAGE 
+        self.ruefVoltage = avg(self.ruefFilterData, self.adcRuef.read_u16(), 11) / 4096 * self.REF_VOLTAGE
+        self.vfVoltage = avg(self.vfFilterData, self.adcVf.read_u16(), 11) / 4096 * self.REF_VOLTAGE
 
 
     def calculateResistence(self, voltage: float):
