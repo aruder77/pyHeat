@@ -45,6 +45,23 @@ class FlowTemperatureRegulatorNode(HomieNode):
         )
         self.add_property(self.tNProperty)
 
+        self.kIProperty = HomieProperty(
+            id="kI",
+            name="kI",
+            datatype=FLOAT,
+            default=self.kI
+        )
+        self.add_property(self.kIProperty)
+
+        self.kDProperty = HomieProperty(
+            id="kD",
+            name="kD",
+            datatype=FLOAT,
+            default=self.kD
+        )
+        self.add_property(self.kDProperty)
+
+
     def kPPropertyMessage(self, topic, payload, retained):
         kP = float(payload)
         if (kP >= 0.0 and kP < 100.0):
@@ -60,6 +77,7 @@ class FlowTemperatureRegulatorNode(HomieNode):
         self.targetFlowTemperature = targetFlowTemperature
         self.pid.setpoint = self.targetFlowTemperature
         self.valveTarget = self.pid(self.currentFlowTemperature)
+        print("PID called (%.1f, %.1f) -> %.1f" % (self.currentFlowTemperature, self.targetFlowTemperature, self.valveTarget))
         return int(self.valveTarget)
 
     def setTunings(self, kP, tN):
@@ -68,5 +86,7 @@ class FlowTemperatureRegulatorNode(HomieNode):
         self.tN = tN
         self.tNProperty.value = tN
         self.kI = kP/tN
+        self.kDProperty.value = self.kI
+        self.kIProperty.value = self.kD
         self.pid.tunings = (self.kP, self.kI, self.kD)
         

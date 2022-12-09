@@ -50,6 +50,7 @@ class HeatingControllerNode(HomieNode):
 
         targetFlowTemperature = self.targetFlowTemperatureCalculator.calculateTargetFlowTemperature(outsideTemperature)
         if (self.numberOfOpenValves == 0):
+            print("all floor valves closed, valveTarget=0")
             valveTarget = 0.0
         else:
             valveTarget = self.flowTemperatureRegulator.calculateValveTarget(flowTemperature, targetFlowTemperature)
