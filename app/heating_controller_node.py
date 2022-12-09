@@ -62,6 +62,8 @@ class HeatingControllerNode(HomieNode):
     def numberOfOpenValvesMessage(self, topic, payload, retained):
         numberOfOpenValves = int(payload)
         print("new value for number of open valves received: %d" % numberOfOpenValves)
+        self.numberOfOpenValves = numberOfOpenValves
+        self.numberOfOpenValvesProperty.value = numberOfOpenValves
         if (numberOfOpenValves == 0):
             self.heatPumpController.off()
         else:
