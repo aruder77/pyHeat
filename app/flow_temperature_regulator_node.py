@@ -23,7 +23,7 @@ class FlowTemperatureRegulatorNode(HomieNode):
 
         self.pid = PID(self.kP, self.kI, self.kD, setpoint=self.targetFlowTemperature, scale='s')
         self.pid.output_limits = (0, 100)
-        self.pid.sample_time = 59
+        self.pid.sample_time = None
 
         self.kPProperty = HomieProperty(
             id="kP",
