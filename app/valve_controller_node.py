@@ -117,6 +117,7 @@ class ValveControllerNode(HomieNode):
                 if ((self.motorAdjustCounter % self.VALVE_ONE_PERCENT_OPEN_CYCLES) == 0):
                     if (self.valveCurrent < 100):
                         self.valveCurrent += 1
+                        self.valveCurrentProperty.value = self.valveCurrent
                     self.motorAdjustCounter -= 1
                     self.adjustTargetValvePosition()
                 else:
@@ -132,6 +133,7 @@ class ValveControllerNode(HomieNode):
                 if ((self.motorAdjustCounter % self.VALVE_ONE_PERCENT_OPEN_CYCLES) == 0):
                     if (self.valveCurrent > 0):
                         self.valveCurrent -= 1
+                        self.valveCurrentProperty.value = self.valveCurrent
                     self.motorAdjustCounter += 1
                     self.adjustTargetValvePosition()
                 else:
