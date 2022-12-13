@@ -1,6 +1,6 @@
 from homie.property import HomieProperty
 from homie.node import HomieNode
-from homie.constants import FLOAT
+from homie.constants import FLOAT, INTEGER
 from PID import PID
 
 
@@ -8,9 +8,10 @@ from PID import PID
 class FlowTemperatureRegulatorNode(HomieNode):
 
     kP = 2.0;
-    tN = 120.0;
-    kI = kP/tN;
+    tN = 0.0;
+    kI = kP/tN if tN > 0 else 0.0;
     kD = 0.0;      
+    sampleTime = 59000;
 
     currentFlowTemperature = 20.0;
     targetFlowTemperature = 40.0;
@@ -21,9 +22,9 @@ class FlowTemperatureRegulatorNode(HomieNode):
     def __init__(self):
         super().__init__(id="pid", name="Flow Temperature Regulator PID", type="Controller")
 
-        self.pid = PID(self.kP, self.kI, self.kD, setpoint=self.targetFlowTemperature, scale='s')
+        self.pid = PID(self.kP, self.kI, self.kD, setpoint=self.targetFlowTemperature, scale='ms')
         self.pid.output_limits = (0, 100)
-        self.pid.sample_time = None
+        self.pid.sample_time = self.sampleTime
 
         self.kPProperty = HomieProperty(
             id="kP",
@@ -61,16 +62,32 @@ class FlowTemperatureRegulatorNode(HomieNode):
         )
         self.add_property(self.kDProperty)
 
+        self.sampleTimeProperty = HomieProperty(
+            id="sampleTime",
+            name="sampleTime",
+            datatype=INTEGER,
+            default=self.sampleTime,
+            on_message=self.sampleTimePropertyMessage,
+            settable=True
+        )
+        self.add_property(self.sampleTimeProperty)
+
 
     def kPPropertyMessage(self, topic, payload, retained):
         kP = float(payload)
         if (kP >= 0.0 and kP < 100.0):
-            self.kP = kP
+            self.setTunings(kP, self.tN)
             
     def tNPropertyMessage(self, topic, payload, retained):
         tN = float(payload)
         if (tN >= 0.0 and tN < 10000.0):
-            self.tN = tN
+            self.setTunings(self.kP, tN)
+
+    def sampleTimePropertyMessage(self, topic, payload, retained):
+        sampleTime = int(payload)
+        if (sampleTime >= 0 and sampleTime < 100000):
+            self.sampleTime = sampleTime
+            self.pid.sample_time = sampleTime
 
     def calculateValveTarget(self, currentFlowTemperature, targetFlowTemperature):
         self.currentFlowTemperature = currentFlowTemperature
@@ -85,8 +102,8 @@ class FlowTemperatureRegulatorNode(HomieNode):
         self.kPProperty.value = kP
         self.tN = tN
         self.tNProperty.value = tN
-        self.kI = kP/tN
-        self.kDProperty.value = self.kI
-        self.kIProperty.value = self.kD
+        self.kI = kP/tN if tN > 0 else 0.0
+        self.kDProperty.value = self.kD
+        self.kIProperty.value = self.kI
         self.pid.tunings = (self.kP, self.kI, self.kD)
         

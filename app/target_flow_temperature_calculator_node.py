@@ -84,7 +84,7 @@ class TargetFlowTemperatureCalculatorNode(HomieNode):
         targetFlowTemperature = min(self.origin + outsideTemperature * self.slope, self.maxFlowTemp)
         # self.targetTemperatureProperty.value = targetFlowTemperature
         self.targetTemperatureProperty.value = 37.0
-        return targetFlowTemperature
+        return self.targetTemperatureProperty.value
 
 
 

@@ -109,16 +109,19 @@ class PID(object):
         if not self.auto_mode:
             return self._last_output
 
-        now = self.time()
+        now = utime.ticks_ms()
         if dt is None:
-            dt = utime.ticks_diff(now,self._last_time) if (utime.ticks_diff(now,self._last_time)) else 1e-16
+            dt = utime.ticks_diff(now, self._last_time) if (utime.ticks_diff(now, self._last_time)) else 1e-16
         elif dt <= 0:
             raise ValueError('dt has negative value {}, must be positive'.format(dt))
 
+        print("dt: %d, sample_time: %d" % (dt, self.sample_time))
         if self.sample_time is not None and dt < self.sample_time and self._last_output is not None:
-            print("dt: %d, sample_time: %d ... returning last output value: %d" % (dt, self.sample_time, self._last_output))
+            print("returning last output value: %d" % self._last_output)
             # Only update every sample_time
             return self._last_output
+
+        print("PID re-calculating new values...")
 
         # Compute error terms
         error = self.setpoint - input_
