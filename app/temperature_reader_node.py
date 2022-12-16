@@ -22,8 +22,13 @@ class TemperatureReaderNode(HomieNode):
     TEMP_FACTOR = 0.257003341043434
     TEMP_OFFSET = -257.003341043434
 
+    K2 = 2584754086
+
     def __init__(self):
         super().__init__(id="Temperatures", name="Temperatures", type="Controller")
+
+        self.delayed = 0
+        self.diff = 0
 
         self.flowTemperatureProperty = HomieProperty(
             id="flowTemperature",
@@ -86,7 +91,7 @@ class TemperatureReaderNode(HomieNode):
 
 
     def readTemperatures(self):
-        self.afVoltage = avg(self.afFilterData, self.adcAf.read_u16(), 11) / 4096 * self.REF_VOLTAGE 
+        self.afVoltage = self.lowpassFilter(self.adcAf.read_u16() >> 3) * self.REF_VOLTAGE 
         self.ruefVoltage = avg(self.ruefFilterData, self.adcRuef.read_u16(), 11) / 4096 * self.REF_VOLTAGE
         self.vfVoltage = avg(self.vfFilterData, self.adcVf.read_u16(), 11) / 4096 * self.REF_VOLTAGE
 
@@ -124,3 +129,9 @@ class TemperatureReaderNode(HomieNode):
         print("reflux: voltage:%.2f, resistence:%.2f, temperature:%.1f" % (self.ruefVoltage, ruefResistence, ruefTemperature))
         self.returnTemperatureProperty.value = ruefTemperature
         return ruefTemperature
+
+
+    def lowpassFilter(self, inp: int):
+        self.diff = ((inp << 8) - self.delayed) * self.K2
+        self.delayed = self.delayed + (self.diff >> 8)
+        return (self.delayed >> 8)
