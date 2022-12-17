@@ -27,8 +27,9 @@ class TemperatureReaderNode(HomieNode):
     def __init__(self):
         super().__init__(id="Temperatures", name="Temperatures", type="Controller")
 
-        self.delayed = 0
-        self.diff = 0
+        self.delayAf = 0
+        self.delayRuef = 0
+        self.delayVf = 0
 
         self.flowTemperatureProperty = HomieProperty(
             id="flowTemperature",
@@ -91,9 +92,12 @@ class TemperatureReaderNode(HomieNode):
 
 
     def readTemperatures(self):
-        self.afVoltage = self.lowpassFilter(self.adcAf.read_u16() >> 4) / 4096 * self.REF_VOLTAGE 
-        self.ruefVoltage = self.lowpassFilter(self.adcRuef.read_u16() >> 4) / 4096 * self.REF_VOLTAGE
-        self.vfVoltage = self.lowpassFilter(self.adcVf.read_u16() >> 4) / 4096 * self.REF_VOLTAGE
+        self.delayAf = self.lowpassFilter(self.adcAf.read_u16() >> 4, self.delayAf)
+        self.afVoltage = self.delayAf / 4096 * self.REF_VOLTAGE 
+        self.delayRuef = self.lowpassFilter(self.adcRuef.read_u16() >> 4, self.delayRuef)
+        self.ruefVoltage =  self.delayRuef / 4096 * self.REF_VOLTAGE
+        self.delayVf = self.lowpassFilter(self.adcVf.read_u16() >> 4, self.delayVf)
+        self.vfVoltage = self.delayVf / 4096 * self.REF_VOLTAGE
 
 
     def calculateResistence(self, voltage: float):
@@ -131,6 +135,5 @@ class TemperatureReaderNode(HomieNode):
         return ruefTemperature
 
 
-    def lowpassFilter(self, inp: int):
-        self.delayed = (inp * self.K2) + (self.delayed * self.K1)
-        return self.delayed
+    def lowpassFilter(self, inp: int, delay: int):
+        return (inp * self.K2) + (delay * self.K1)
