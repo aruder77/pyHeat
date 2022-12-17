@@ -1,6 +1,5 @@
 import array
 from machine import ADC, Pin, Timer
-from avg_pico import avg
 from homie.node import HomieNode
 from homie.property import HomieProperty
 from homie.constants import FLOAT
@@ -22,7 +21,8 @@ class TemperatureReaderNode(HomieNode):
     TEMP_FACTOR = 0.257003341043434
     TEMP_OFFSET = -257.003341043434
 
-    K2 = 2584754086
+    K2 = 0.001
+    K1 = 1 - K2
 
     def __init__(self):
         super().__init__(id="Temperatures", name="Temperatures", type="Controller")
@@ -91,9 +91,9 @@ class TemperatureReaderNode(HomieNode):
 
 
     def readTemperatures(self):
-        self.afVoltage = self.lowpassFilter(self.adcAf.read_u16() >> 3) * self.REF_VOLTAGE 
-        self.ruefVoltage = avg(self.ruefFilterData, self.adcRuef.read_u16(), 11) / 4096 * self.REF_VOLTAGE
-        self.vfVoltage = avg(self.vfFilterData, self.adcVf.read_u16(), 11) / 4096 * self.REF_VOLTAGE
+        self.afVoltage = self.lowpassFilter(self.adcAf.read_u16() >> 4) / 4096 * self.REF_VOLTAGE 
+        self.ruefVoltage = self.lowpassFilter(self.adcRuef.read_u16() >> 4) / 4096 * self.REF_VOLTAGE
+        self.vfVoltage = self.lowpassFilter(self.adcVf.read_u16() >> 4) / 4096 * self.REF_VOLTAGE
 
 
     def calculateResistence(self, voltage: float):
@@ -132,6 +132,5 @@ class TemperatureReaderNode(HomieNode):
 
 
     def lowpassFilter(self, inp: int):
-        self.diff = ((inp << 8) - self.delayed) * self.K2
-        self.delayed = self.delayed + (self.diff >> 8)
-        return (self.delayed >> 8)
+        self.delayed = (inp * self.K2) + (self.delayed * self.K1)
+        return self.delayed
