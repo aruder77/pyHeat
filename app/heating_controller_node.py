@@ -1,6 +1,6 @@
 from homie.property import HomieProperty
 from homie.node import HomieNode
-from homie.constants import INTEGER, FLOAT, ENUM
+from homie.constants import INTEGER
 from machine import Timer
 from flow_temperature_regulator_node import FlowTemperatureRegulatorNode
 from target_flow_temperature_calculator_node import TargetFlowTemperatureCalculatorNode
@@ -26,6 +26,8 @@ class HeatingControllerNode(HomieNode):
         self.valveController = valveController
         self.heatPumpController = heatPumpController
 
+        self.temperatureSensorsInitialized = False
+
         self.numberOfOpenValves = 0
         self.numberOfOpenValvesProperty = HomieProperty(
             id="numberOfOpenValves",
@@ -42,6 +44,12 @@ class HeatingControllerNode(HomieNode):
         self.every10SecondsTimer = Timer(-1)
         self.every10SecondsTimer.init(period=10000, mode=Timer.PERIODIC, callback=lambda t:self.every10Seconds())
 
+        self.temperatureInitializationTimer = Timer(-1)
+        self.temperatureInitializationTimer.init(period=600000, mode=Timer.ONE_SHOT, callback=lambda t:self.finishTemperatureSensorInitialization())
+
+    def finishTemperatureSensorInitialization(self):
+        self.temperatureSensorsInitialized = True
+
 
     def every10Seconds(self):
         flowTemperature = self.temperatureReader.getFlowTemperature()
@@ -55,7 +63,8 @@ class HeatingControllerNode(HomieNode):
         else:
             valveTarget = self.flowTemperatureRegulator.calculateValveTarget(flowTemperature, targetFlowTemperature)
         valveCurrent = self.valveController.valveCurrent
-        self.valveController.setTarget(valveTarget)
+        if (self.temperatureSensorsInitialized):
+            self.valveController.setTarget(valveTarget)
 
         print("Flow Temp aktuell: %.1f, Ziel: %.1f Ventil aktuell: %d, Ziel: %d" % (flowTemperature, targetFlowTemperature, valveCurrent, valveTarget)) 
 
