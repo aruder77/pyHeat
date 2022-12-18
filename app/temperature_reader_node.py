@@ -21,7 +21,7 @@ class TemperatureReaderNode(HomieNode):
     TEMP_FACTOR = 0.257003341043434
     TEMP_OFFSET = -257.003341043434
 
-    K2 = 0.001
+    K2 = 0.0005
     K1 = 1 - K2
 
     def __init__(self):
@@ -62,7 +62,17 @@ class TemperatureReaderNode(HomieNode):
             settable=False,
             default=0.0,
         )
-        self.add_property(self.returnTemperatureProperty)    
+        self.add_property(self.returnTemperatureProperty)   
+
+        self.lowpassFilterK2Property = HomieProperty(
+            id="lowpassFilterK2",
+            name="lowpassFilterK2",
+            datatype=FLOAT,
+            settable=True,
+            default=0.0005,
+            on_message=self.lowpassFilterK2PropertyMessage
+        )
+        self.add_property(self.lowpassFilterK2Property)   
 
         self.setup()
     
@@ -89,6 +99,13 @@ class TemperatureReaderNode(HomieNode):
 
         self.readTemperaturesTimer = Timer(-1)
         self.readTemperaturesTimer.init(period=100, mode=Timer.PERIODIC, callback=lambda t:self.readTemperatures())
+
+
+    def lowpassFilterK2PropertyMessage(self, topic, payload, retained):
+        k2 = float(payload)
+        if (k2 >= 0.0 and k2 <= 1.0):
+            self.K2 = k2
+            self.K1 = 1 - self.K2
 
 
     def readTemperatures(self):
