@@ -63,7 +63,7 @@ class HeatingControllerNode(HomieNode):
         else:
             valveTarget = self.flowTemperatureRegulator.calculateValveTarget(flowTemperature, targetFlowTemperature)
         valveCurrent = self.valveController.valveCurrent
-        if (self.temperatureSensorsInitialized):
+        if (self.temperatureSensorsInitialized == True):
             self.valveController.setTarget(valveTarget)
 
         print("Flow Temp aktuell: %.1f, Ziel: %.1f Ventil aktuell: %d, Ziel: %d" % (flowTemperature, targetFlowTemperature, valveCurrent, valveTarget)) 

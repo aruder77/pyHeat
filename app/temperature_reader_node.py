@@ -27,9 +27,9 @@ class TemperatureReaderNode(HomieNode):
     def __init__(self):
         super().__init__(id="Temperatures", name="Temperatures", type="Controller")
 
-        self.delayAf = 1000
-        self.delayRuef = 1000
-        self.delayVf = 1000
+        self.delayAf = 900
+        self.delayRuef = 900
+        self.delayVf = 900
 
         self.flowTemperatureProperty = HomieProperty(
             id="flowTemperature",
