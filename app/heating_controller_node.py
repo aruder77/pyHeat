@@ -45,7 +45,7 @@ class HeatingControllerNode(HomieNode):
         self.every10SecondsTimer.init(period=10000, mode=Timer.PERIODIC, callback=lambda t:self.every10Seconds())
 
         self.temperatureInitializationTimer = Timer(-1)
-        self.temperatureInitializationTimer.init(period=600000, mode=Timer.ONE_SHOT, callback=lambda t:self.finishTemperatureSensorInitialization())
+        self.temperatureInitializationTimer.init(period=60000, mode=Timer.ONE_SHOT, callback=lambda t:self.finishTemperatureSensorInitialization())
 
     def finishTemperatureSensorInitialization(self):
         self.temperatureSensorsInitialized = True

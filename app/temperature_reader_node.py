@@ -27,9 +27,10 @@ class TemperatureReaderNode(HomieNode):
     def __init__(self):
         super().__init__(id="Temperatures", name="Temperatures", type="Controller")
 
-        self.delayAf = 900
-        self.delayRuef = 900
-        self.delayVf = 900
+        self.delayAf = None
+        self.delayRuef = None
+        self.delayVf = None
+        self.delayRawVf = None
 
         self.flowTemperatureProperty = HomieProperty(
             id="flowTemperature",
@@ -41,6 +42,17 @@ class TemperatureReaderNode(HomieNode):
             default=0.0,
         )
         self.add_property(self.flowTemperatureProperty)
+
+        self.rawFlowTemperatureProperty = HomieProperty(
+            id="rawFlowTemperature",
+            name="rawFlowTemperature",
+            datatype=FLOAT,
+            unit="°C", 
+            format="10.0",
+            settable=False,
+            default=0.0,
+        )
+        self.add_property(self.rawFlowTemperatureProperty)        
 
         self.outsideTemperatureProperty = HomieProperty(
             id="outsideTemperature",
@@ -84,21 +96,14 @@ class TemperatureReaderNode(HomieNode):
         self.adcRuef = ADC(Pin(RUEF_TEMP_PIN))
         self.adcVf = ADC(Pin(VF_TEMP_PIN))
 
-        self.afFilterData = array.array('i', (0 for _ in range(self.NO_OF_SAMPLES_TO_AVG + 3))) # Average over 16 samples
-        self.afFilterData[0] = len(self.afFilterData)
-
-        self.ruefFilterData = array.array('i', (0 for _ in range(self.NO_OF_SAMPLES_TO_AVG + 3))) # Average over 16 samples
-        self.ruefFilterData[0] = len(self.ruefFilterData)
-
-        self.vfFilterData = array.array('i', (0 for _ in range(self.NO_OF_SAMPLES_TO_AVG + 3))) # Average over 16 samples
-        self.vfFilterData[0] = len(self.vfFilterData)
-
         self.afVoltage = 0.0
         self.ruefVoltage = 0.0
         self.vfVoltage = 0.0
+        self.rawVfVoltage = 0.0
 
         self.readTemperaturesTimer = Timer(-1)
         self.readTemperaturesTimer.init(period=100, mode=Timer.PERIODIC, callback=lambda t:self.readTemperatures())
+
 
 
     def lowpassFilterK2PropertyMessage(self, topic, payload, retained):
@@ -109,12 +114,15 @@ class TemperatureReaderNode(HomieNode):
 
 
     def readTemperatures(self):
-        self.delayAf = self.lowpassFilter(self.adcAf.read_u16() >> 4, self.delayAf)
+        self.delayAf = self.lowpassFilter(self.adcAf.read_u16() >> 4, self.delayAf, self.K2)
         self.afVoltage = self.delayAf / 4096 * self.REF_VOLTAGE 
-        self.delayRuef = self.lowpassFilter(self.adcRuef.read_u16() >> 4, self.delayRuef)
+        self.delayRuef = self.lowpassFilter(self.adcRuef.read_u16() >> 4, self.delayRuef, self.K2)
         self.ruefVoltage =  self.delayRuef / 4096 * self.REF_VOLTAGE
-        self.delayVf = self.lowpassFilter(self.adcVf.read_u16() >> 4, self.delayVf)
+        vfReading = self.adcVf.read_u16() >> 4
+        self.delayVf = self.lowpassFilter(vfReading, self.delayVf, self.K2)
         self.vfVoltage = self.delayVf / 4096 * self.REF_VOLTAGE
+        self.delayRawVf = self.lowpassFilter(vfReading, self.delayRawVf, 0.01)
+        self.rawAfVoltage = self.delayRawVf / 4096 * self.REF_VOLTAGE 
 
 
     def calculateResistence(self, voltage: float):
@@ -139,8 +147,11 @@ class TemperatureReaderNode(HomieNode):
     def getFlowTemperature(self):
         vfResistence = self.resistenceCorrection(self.calculateResistence(self.vfVoltage))
         vfTemperature = self.calculateTemperature(vfResistence)
+        rawVfResistence = self.resistenceCorrection(self.calculateResistence(self.rawVfVoltage))
+        rawVfTemperature = self.calculateTemperature(rawVfResistence)
         print("flow: voltage:%.2f, resistence:%.2f, temperature:%.1f" % (self.vfVoltage, vfResistence, vfTemperature))
         self.flowTemperatureProperty.value = vfTemperature
+        self.rawFlowTemperatureProperty.value = rawVfTemperature
         return vfTemperature
 
 
@@ -152,5 +163,6 @@ class TemperatureReaderNode(HomieNode):
         return ruefTemperature
 
 
-    def lowpassFilter(self, inp: int, delay: int):
-        return (inp * self.K2) + (delay * self.K1)
+    def lowpassFilter(self, inp: int, delayParam, k2):
+        delay = inp if delayParam is None else delayParam
+        return (inp * k2) + (delay * (1 - k2))
