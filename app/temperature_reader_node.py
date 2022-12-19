@@ -122,7 +122,7 @@ class TemperatureReaderNode(HomieNode):
         self.delayVf = self.lowpassFilter(vfReading, self.delayVf, self.K2)
         self.vfVoltage = self.delayVf / 4096 * self.REF_VOLTAGE
         self.delayRawVf = self.lowpassFilter(vfReading, self.delayRawVf, 0.01)
-        self.rawAfVoltage = self.delayRawVf / 4096 * self.REF_VOLTAGE 
+        self.rawVfVoltage = self.delayRawVf / 4096 * self.REF_VOLTAGE 
 
 
     def calculateResistence(self, voltage: float):
