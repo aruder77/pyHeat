@@ -28,13 +28,13 @@ class HeatingControllerNode(HomieNode):
 
         self.temperatureSensorsInitialized = False
 
-        self.numberOfOpenValves = 0
+        self.numberOfOpenValves = 1
         self.numberOfOpenValvesProperty = HomieProperty(
             id="numberOfOpenValves",
             name="numberOfOpenValves",
             datatype=INTEGER,
             settable=True,
-            default=0,
+            default=1,
             on_message=self.numberOfOpenValvesMessage
         )
         self.add_property(self.numberOfOpenValvesProperty)

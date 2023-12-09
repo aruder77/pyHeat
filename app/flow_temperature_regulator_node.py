@@ -7,8 +7,8 @@ from PID import PID
 
 class FlowTemperatureRegulatorNode(HomieNode):
 
-    kP = 2.0;
-    tN = 0.0;
+    kP = 2.6;
+    tN = 1000;
     kI = kP/tN if tN > 0 else 0.0;
     kD = 0.0;      
     sampleTime = 59000;
