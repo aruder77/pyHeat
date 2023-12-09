@@ -59,7 +59,7 @@ class ValveControllerNode(HomieNode):
         self.every10SecondsTimer.init(period=10, mode=Timer.PERIODIC, callback=lambda t:self.every10Milliseconds())
 
         self.resetValveTimer = Timer(-1)
-        self.resetValveTimer.init(period=86400000, mode=Timer.PERIODIC, callback=lambda t:self.resetValve()) # 24h
+        self.resetValveTimer.init(period=86400000, mode=Timer.PERIODIC, callback=lambda t:self.closeValve()) # 24h
         
 
 
